@@ -344,6 +344,7 @@ partial class Form1
         this.txtRecoveryPath.ReadOnly = true;
         this.txtRecoveryPath.Size = new Size(650, 23);
         this.txtRecoveryPath.TabIndex = 2;
+        this.txtRecoveryPath.Text = "Click Browse... to select recovery directory";
         // 
         // btnBrowsePath
         // 
