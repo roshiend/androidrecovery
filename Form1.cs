@@ -38,6 +38,14 @@ public partial class Form1 : Form
             
             // Load initial device list
             RefreshDevicesSilently();
+            
+            // Test tree view with a sample node
+            var testNode = new TreeNode("Test Directory")
+            {
+                Checked = true
+            };
+            treeViewDirectories.Nodes.Add(testNode);
+            Console.WriteLine("Test node added to tree view");
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -1766,35 +1774,82 @@ public partial class Form1 : Form
         {
             try
             {
+                Console.WriteLine("LoadDirectoryTree: Starting...");
+                
                 if (connectedDevice == null)
                 {
+                    Console.WriteLine("LoadDirectoryTree: No connected device");
                     treeViewDirectories.Nodes.Clear();
                     return;
                 }
 
-                treeViewDirectories.Nodes.Clear();
+                Console.WriteLine("LoadDirectoryTree: Clearing tree view");
+                
+                // Ensure we're on the UI thread
+                if (treeViewDirectories.InvokeRequired)
+                {
+                    treeViewDirectories.Invoke(new Action(() => {
+                        treeViewDirectories.Nodes.Clear();
+                    }));
+                }
+                else
+                {
+                    treeViewDirectories.Nodes.Clear();
+                }
+                
                 selectedDirectories.Clear();
 
                 // Get root directory
+                Console.WriteLine("LoadDirectoryTree: Getting root directory");
                 var rootDir = connectedDevice.GetDirectoryInfo("/");
                 if (rootDir != null)
                 {
+                    Console.WriteLine($"LoadDirectoryTree: Root directory found: {rootDir.Name}");
+                    
                     // Create root node
                     var rootNode = new TreeNode("Device Root")
                     {
                         Tag = "/",
                         Checked = true // Check root by default
                     };
-                    treeViewDirectories.Nodes.Add(rootNode);
+                    
+                    // Ensure we're on the UI thread for tree view operations
+                    if (treeViewDirectories.InvokeRequired)
+                    {
+                        treeViewDirectories.Invoke(new Action(() => {
+                            treeViewDirectories.Nodes.Add(rootNode);
+                        }));
+                    }
+                    else
+                    {
+                        treeViewDirectories.Nodes.Add(rootNode);
+                    }
+                    Console.WriteLine("LoadDirectoryTree: Root node added");
 
                     // Load subdirectories
+                    Console.WriteLine("LoadDirectoryTree: Loading subdirectories");
                     await LoadDirectoryNodes(rootDir, rootNode);
                     
                     // Expand root node
-                    rootNode.Expand();
+                    if (treeViewDirectories.InvokeRequired)
+                    {
+                        treeViewDirectories.Invoke(new Action(() => {
+                            rootNode.Expand();
+                        }));
+                    }
+                    else
+                    {
+                        rootNode.Expand();
+                    }
+                    Console.WriteLine("LoadDirectoryTree: Root node expanded");
                     
                     // Add root to selected directories
                     selectedDirectories.Add("/");
+                    Console.WriteLine($"LoadDirectoryTree: Completed with {treeViewDirectories.Nodes.Count} nodes");
+                }
+                else
+                {
+                    Console.WriteLine("LoadDirectoryTree: Root directory is null");
                 }
             }
             catch (Exception ex)
@@ -1808,6 +1863,7 @@ public partial class Form1 : Form
         {
             try
             {
+                Console.WriteLine($"LoadDirectoryNodes: Enumerating directories in {directory.Name}");
                 var subdirs = directory.EnumerateDirectories();
                 int count = 0;
                 
@@ -1816,13 +1872,24 @@ public partial class Form1 : Form
                     if (count >= 20) // Limit to prevent UI freezing
                         break;
                         
+                    Console.WriteLine($"LoadDirectoryNodes: Adding directory {subdir.Name}");
                     var node = new TreeNode(subdir.Name)
                     {
                         Tag = subdir.FullName,
                         Checked = false // Don't check subdirectories by default
                     };
                     
-                    parentNode.Nodes.Add(node);
+                    // Ensure we're on the UI thread for tree operations
+                    if (parentNode.TreeView != null && parentNode.TreeView.InvokeRequired)
+                    {
+                        parentNode.TreeView.Invoke(new Action(() => {
+                            parentNode.Nodes.Add(node);
+                        }));
+                    }
+                    else
+                    {
+                        parentNode.Nodes.Add(node);
+                    }
                     
                     // Load subdirectories of this directory (limited depth)
                     try
@@ -1846,6 +1913,8 @@ public partial class Form1 : Form
                     
                     count++;
                 }
+                
+                Console.WriteLine($"LoadDirectoryNodes: Added {count} directories to {parentNode.Text}");
             }
             catch (Exception ex)
             {
