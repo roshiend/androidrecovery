@@ -959,7 +959,7 @@ public partial class Form1 : Form
                     }
                     currentScanningPath = $"/{directory.Name}";
                     txtRecoveryPath.Text = $"Scanning: {currentScanningPath}";
-                    UpdateScanningInfo($"Scanning Directory\n\nDirectory: {directory.Name}\n\nChecking files for recovery...");
+                    UpdateScanningInfo($"Current Scanning Directory\n\n📁 {currentScanningPath}\n\n🔍 Checking files for recovery...");
                 }));
                 
                 // Scan files in current directory
@@ -982,7 +982,7 @@ public partial class Form1 : Form
                             {
                                 statusStrip1.Items[0].Text = $"Scanning {directory.Name}: {fileCount} files checked, {recoverableCount} recoverable...";
                             }
-                            UpdateScanningInfo($"Scanning Progress\n\nDirectory: {directory.Name}\nFiles Checked: {fileCount}\nRecoverable Found: {recoverableCount}\n\nContinuing scan...");
+                            UpdateScanningInfo($"Scanning Progress\n\n📁 {currentScanningPath}\nFiles Checked: {fileCount}\nRecoverable Found: {recoverableCount}\n\nContinuing scan...");
                         }));
                     }
                     
@@ -997,7 +997,7 @@ public partial class Form1 : Form
                             {
                                 statusStrip1.Items[0].Text = $"Found recoverable file: {file.Name} ({FormatFileSize((long)file.Length)})";
                             }
-                            UpdateScanningInfo($"Found Recoverable File\n\nFile: {file.Name}\nSize: {FormatFileSize((long)file.Length)}\nType: {fileExtension}\n\nPreparing to recover...");
+                            UpdateScanningInfo($"Found Recoverable File\n\n📁 {currentScanningPath}\n📄 {file.Name}\nSize: {FormatFileSize((long)file.Length)}\nType: {fileExtension}\n\nPreparing to recover...");
                         }));
                         
                         // Found a recoverable file
@@ -1022,7 +1022,7 @@ public partial class Form1 : Form
                                 {
                                     statusStrip1.Items[0].Text = $"Recovering: {file.Name}...";
                                 }
-                                UpdateScanningInfo($"Recovering File\n\nFile: {file.Name}\nSize: {FormatFileSize((long)file.Length)}\nDestination: {destinationPath}\n\nCopying file...");
+                                UpdateScanningInfo($"Recovering File\n\n📁 {currentScanningPath}\n📄 {file.Name}\nSize: {FormatFileSize((long)file.Length)}\nDestination: {destinationPath}\n\nCopying file...");
                             }));
                             
                             using (var sourceStream = file.OpenRead())
@@ -1040,7 +1040,7 @@ public partial class Form1 : Form
                                 {
                                     statusStrip1.Items[0].Text = $"Recovered: {file.Name} - Total: {recoveredFiles.Count + 1} files";
                                 }
-                                UpdateScanningInfo($"File Successfully Recovered\n\nFile: {file.Name}\nSize: {FormatFileSize((long)file.Length)}\nTotal Recovered: {recoveredFiles.Count + 1} files\n\nContinuing scan...");
+                                UpdateScanningInfo($"File Successfully Recovered\n\n📁 {currentScanningPath}\n📄 {file.Name}\nSize: {FormatFileSize((long)file.Length)}\nTotal Recovered: {recoveredFiles.Count + 1} files\n\nContinuing scan...");
                             }));
                         }
                         catch (Exception ex)
@@ -1054,7 +1054,7 @@ public partial class Form1 : Form
                                 {
                                     statusStrip1.Items[0].Text = $"Error recovering: {file.Name}";
                                 }
-                                UpdateScanningInfo($"Recovery Error\n\nFile: {file.Name}\nError: {ex.Message}\n\nContinuing scan...");
+                                UpdateScanningInfo($"Recovery Error\n\n📁 {currentScanningPath}\n📄 {file.Name}\nError: {ex.Message}\n\nContinuing scan...");
                             }));
                         }
                         
@@ -1076,7 +1076,7 @@ public partial class Form1 : Form
                     {
                         statusStrip1.Items[0].Text = $"Completed {directory.Name}: {fileCount} files scanned, {recoverableCount} recoverable";
                     }
-                    UpdateScanningInfo($"Directory Scan Complete\n\nDirectory: {directory.Name}\nFiles Scanned: {fileCount}\nRecoverable Found: {recoverableCount}\n\nScanning subdirectories...");
+                    UpdateScanningInfo($"Directory Scan Complete\n\n📁 {currentScanningPath}\nFiles Scanned: {fileCount}\nRecoverable Found: {recoverableCount}\n\nScanning subdirectories...");
                 }));
                 
                 // Scan subdirectories
@@ -1090,6 +1090,7 @@ public partial class Form1 : Form
                     this.Invoke(new Action(() => {
                         currentScanningPath = $"{currentScanningPath}/{subdir.Name}";
                         txtRecoveryPath.Text = $"Scanning: {currentScanningPath}";
+                        UpdateScanningInfo($"Current Scanning Directory\n\n📁 {currentScanningPath}\n\n🔍 Scanning subdirectory...");
                     }));
                         
                     ScanDirectoryRecursive(subdir, fileTypes, recoveredFiles, recoveryPath, cancellationToken);
@@ -1105,7 +1106,7 @@ public partial class Form1 : Form
                     {
                         statusStrip1.Items[0].Text = $"Error scanning {directory.Name}: {ex.Message}";
                     }
-                    UpdateScanningInfo($"Scanning Error\n\nDirectory: {directory.Name}\nError: {ex.Message}\n\nContinuing scan...");
+                    UpdateScanningInfo($"Scanning Error\n\n📁 {currentScanningPath}\nError: {ex.Message}\n\nContinuing scan...");
                 }));
             }
         }

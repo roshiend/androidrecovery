@@ -464,7 +464,7 @@ partial class Form1
         this.pictureBox1.BorderStyle = BorderStyle.FixedSingle;
         this.pictureBox1.Location = new Point(0, 0);
         this.pictureBox1.Name = "pictureBox1";
-        this.pictureBox1.Size = new Size(396, 600);
+        this.pictureBox1.Size = new Size(396, 550);
         this.pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
         this.pictureBox1.TabIndex = 0;
         this.pictureBox1.TabStop = false;
@@ -476,9 +476,9 @@ partial class Form1
         this.lblPreview.BorderStyle = BorderStyle.FixedSingle;
         this.lblPreview.Font = new Font("Microsoft Sans Serif", 8F, FontStyle.Regular);
         this.lblPreview.ForeColor = Color.Black;
-        this.lblPreview.Location = new Point(0, 600);
+        this.lblPreview.Location = new Point(0, 550);
         this.lblPreview.Name = "lblPreview";
-        this.lblPreview.Size = new Size(396, 104);
+        this.lblPreview.Size = new Size(396, 154);
         this.lblPreview.TabIndex = 1;
         this.lblPreview.Text = "Scanning Information:\r\n\r\nReady to scan device storage...\r\n\r\nSelect a file to preview";
         this.lblPreview.TextAlign = ContentAlignment.TopLeft;
