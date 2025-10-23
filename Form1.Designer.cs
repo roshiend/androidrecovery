@@ -344,7 +344,7 @@ partial class Form1
         this.txtRecoveryPath.ReadOnly = true;
         this.txtRecoveryPath.Size = new Size(650, 23);
         this.txtRecoveryPath.TabIndex = 2;
-        this.txtRecoveryPath.Text = "Click Browse... to select recovery directory";
+        this.txtRecoveryPath.Text = "Current scanning path will appear here during recovery...";
         // 
         // btnBrowsePath
         // 
@@ -363,7 +363,7 @@ partial class Form1
         this.lblRecoveryPath.Name = "lblRecoveryPath";
         this.lblRecoveryPath.Size = new Size(100, 15);
         this.lblRecoveryPath.TabIndex = 0;
-        this.lblRecoveryPath.Text = "Recovery Directory:";
+        this.lblRecoveryPath.Text = "Current Scanning Path:";
         // 
         // groupBox3
         // 
@@ -459,28 +459,28 @@ partial class Form1
         // 
         // pictureBox1
         // 
-        this.pictureBox1.Anchor = ((AnchorStyles)((AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right)));
+        this.pictureBox1.Anchor = ((AnchorStyles)((((AnchorStyles.Top | AnchorStyles.Bottom) | AnchorStyles.Left) | AnchorStyles.Right)));
         this.pictureBox1.BackColor = Color.LightGray;
         this.pictureBox1.BorderStyle = BorderStyle.FixedSingle;
         this.pictureBox1.Location = new Point(0, 0);
         this.pictureBox1.Name = "pictureBox1";
-        this.pictureBox1.Size = new Size(396, 650);
+        this.pictureBox1.Size = new Size(396, 600);
         this.pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
         this.pictureBox1.TabIndex = 0;
         this.pictureBox1.TabStop = false;
         // 
         // lblPreview
         // 
-        this.lblPreview.Anchor = ((AnchorStyles)((AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right)));
-        this.lblPreview.BackColor = Color.Yellow;
+        this.lblPreview.Anchor = ((AnchorStyles)((AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right)));
+        this.lblPreview.BackColor = Color.LightBlue;
         this.lblPreview.BorderStyle = BorderStyle.FixedSingle;
-        this.lblPreview.Font = new Font("Microsoft Sans Serif", 11F, FontStyle.Bold);
+        this.lblPreview.Font = new Font("Microsoft Sans Serif", 8F, FontStyle.Regular);
         this.lblPreview.ForeColor = Color.Black;
-        this.lblPreview.Location = new Point(0, 650);
+        this.lblPreview.Location = new Point(0, 600);
         this.lblPreview.Name = "lblPreview";
-        this.lblPreview.Size = new Size(396, 54);
+        this.lblPreview.Size = new Size(396, 104);
         this.lblPreview.TabIndex = 1;
-        this.lblPreview.Text = "Select a file to preview";
+        this.lblPreview.Text = "Scanning Information:\r\n\r\nReady to scan device storage...\r\n\r\nSelect a file to preview";
         this.lblPreview.TextAlign = ContentAlignment.TopLeft;
         // 
         // timer1

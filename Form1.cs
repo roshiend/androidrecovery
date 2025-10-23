@@ -21,6 +21,7 @@ public partial class Form1 : Form
         private string? connectedDeviceName = null;
         private CancellationTokenSource? recoveryCancellationToken = null;
         private bool isRecoveryRunning = false;
+        private string? currentScanningPath = null;
 
     public Form1()
     {
@@ -30,6 +31,9 @@ public partial class Form1 : Form
             isAutoDetectionEnabled = true;
             btnToggleMonitoring.Text = "Auto-Detect: ON";
             timer1.Enabled = true;
+            
+            // Initialize scanning path display
+            txtRecoveryPath.Text = "Ready to scan - Connect device and start recovery";
             
             // Load initial device list
             RefreshDevicesSilently();
@@ -805,11 +809,15 @@ public partial class Form1 : Form
                     fileTypes.AddRange(new[] { ".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm", ".3gp", ".m4v" });
                 }
                 
-                // Update status
+                // Update status and info box
                 if (statusStrip1.Items.Count > 0)
                 {
-                    statusStrip1.Items[0].Text = $"Scanning device for {fileTypes.Count} file types...";
+                    var fileTypeList = string.Join(", ", fileTypes);
+                    statusStrip1.Items[0].Text = $"Starting scan for {fileTypes.Count} file types: {fileTypeList}";
                 }
+                
+                // Update info box
+                UpdateScanningInfo($"Starting File Recovery Scan\n\nFile Types: {string.Join(", ", fileTypes)}\n\nScanning device storage for recoverable files...");
                 
                 // Start recovery process
                 await Task.Run(() => PerformFileRecovery(fileTypes, recoveryCancellationToken.Token));
@@ -821,12 +829,15 @@ public partial class Form1 : Form
                 UpdateRecoveryButtonStates();
                 progressBar.Visible = false;
                 
-                // Update status
+                // Update status and info box
                 var recoveredCount = lstRecoveredFiles.Items.Count;
                 if (statusStrip1.Items.Count > 0)
                 {
                     statusStrip1.Items[0].Text = $"Recovery completed - Found {recoveredCount} files";
                 }
+                currentScanningPath = null;
+                txtRecoveryPath.Text = "Recovery completed - All directories scanned";
+                UpdateScanningInfo($"Recovery Complete\n\nTotal Files Found: {recoveredCount}\nRecovery Path: {txtRecoveryPath.Text}\n\nAll files have been successfully recovered!");
                 
                 // Show completion message
                 MessageBox.Show($"File recovery completed!\n\nFound {recoveredCount} recoverable files.\n\nFiles have been saved to:\n{txtRecoveryPath.Text}", 
@@ -847,6 +858,9 @@ public partial class Form1 : Form
                 {
                     statusStrip1.Items[0].Text = "Recovery cancelled by user";
                 }
+                currentScanningPath = null;
+                txtRecoveryPath.Text = "Recovery cancelled by user";
+                UpdateScanningInfo($"Recovery Cancelled\n\nRecovery was stopped by user\n\nFiles found before cancellation have been saved.");
                 
                 Console.WriteLine("Recovery cancelled by user");
             }
@@ -855,6 +869,10 @@ public partial class Form1 : Form
                 isRecoveryRunning = false;
                 UpdateRecoveryButtonStates();
                 progressBar.Visible = false;
+                
+                currentScanningPath = null;
+                txtRecoveryPath.Text = "Recovery error - Check device connection";
+                UpdateScanningInfo($"Recovery Error\n\nError: {ex.Message}\n\nPlease check device connection and try again.");
                 
                 MessageBox.Show($"Recovery error: {ex.Message}", 
                               "Recovery Error", 
@@ -908,12 +926,15 @@ public partial class Form1 : Form
                     if (cancellationToken.IsCancellationRequested)
                         return;
                         
-                    // Update status
+                    // Update status, info box, and scanning path
                     this.Invoke(new Action(() => {
                         if (statusStrip1.Items.Count > 0)
                         {
-                            statusStrip1.Items[0].Text = "Scanning device storage...";
+                            statusStrip1.Items[0].Text = $"Scanning device storage: {rootDir.Name}...";
                         }
+                        currentScanningPath = $"/{rootDir.Name}";
+                        txtRecoveryPath.Text = $"Scanning: {currentScanningPath}";
+                        UpdateScanningInfo($"Scanning Device Storage\n\nCurrent Directory: {rootDir.Name}\n\nScanning for recoverable files...");
                     }));
                     
                     // Scan directory recursively
@@ -930,16 +951,55 @@ public partial class Form1 : Form
         {
             try
             {
+                // Update status, info box, and scanning path to show current directory being scanned
+                this.Invoke(new Action(() => {
+                    if (statusStrip1.Items.Count > 0)
+                    {
+                        statusStrip1.Items[0].Text = $"Scanning directory: {directory.Name}...";
+                    }
+                    currentScanningPath = $"/{directory.Name}";
+                    txtRecoveryPath.Text = $"Scanning: {currentScanningPath}";
+                    UpdateScanningInfo($"Scanning Directory\n\nDirectory: {directory.Name}\n\nChecking files for recovery...");
+                }));
+                
                 // Scan files in current directory
                 var files = directory.EnumerateFiles();
+                int fileCount = 0;
+                int recoverableCount = 0;
+                
                 foreach (var file in files)
                 {
                     if (cancellationToken.IsCancellationRequested)
                         return;
                         
+                    fileCount++;
+                    
+                    // Update status and info box every 5 files
+                    if (fileCount % 5 == 0)
+                    {
+                        this.Invoke(new Action(() => {
+                            if (statusStrip1.Items.Count > 0)
+                            {
+                                statusStrip1.Items[0].Text = $"Scanning {directory.Name}: {fileCount} files checked, {recoverableCount} recoverable...";
+                            }
+                            UpdateScanningInfo($"Scanning Progress\n\nDirectory: {directory.Name}\nFiles Checked: {fileCount}\nRecoverable Found: {recoverableCount}\n\nContinuing scan...");
+                        }));
+                    }
+                    
                     var fileExtension = Path.GetExtension(file.Name).ToLower();
                     if (fileTypes.Contains(fileExtension))
                     {
+                        recoverableCount++;
+                        
+                        // Update status and info box for each recoverable file found
+                        this.Invoke(new Action(() => {
+                            if (statusStrip1.Items.Count > 0)
+                            {
+                                statusStrip1.Items[0].Text = $"Found recoverable file: {file.Name} ({FormatFileSize((long)file.Length)})";
+                            }
+                            UpdateScanningInfo($"Found Recoverable File\n\nFile: {file.Name}\nSize: {FormatFileSize((long)file.Length)}\nType: {fileExtension}\n\nPreparing to recover...");
+                        }));
+                        
                         // Found a recoverable file
                         var recoveredFile = new RecoveredFileInfo
                         {
@@ -955,6 +1015,16 @@ public partial class Form1 : Form
                         try
                         {
                             var destinationPath = Path.Combine(recoveryPath, file.Name);
+                            
+                            // Update status and info box during file copy
+                            this.Invoke(new Action(() => {
+                                if (statusStrip1.Items.Count > 0)
+                                {
+                                    statusStrip1.Items[0].Text = $"Recovering: {file.Name}...";
+                                }
+                                UpdateScanningInfo($"Recovering File\n\nFile: {file.Name}\nSize: {FormatFileSize((long)file.Length)}\nDestination: {destinationPath}\n\nCopying file...");
+                            }));
+                            
                             using (var sourceStream = file.OpenRead())
                             using (var destinationStream = File.Create(destinationPath))
                             {
@@ -963,11 +1033,29 @@ public partial class Form1 : Form
                             
                             recoveredFile.Status = "Recovered";
                             Console.WriteLine($"Recovered: {file.Name} ({file.Length} bytes)");
+                            
+                            // Update status and info box after successful recovery
+                            this.Invoke(new Action(() => {
+                                if (statusStrip1.Items.Count > 0)
+                                {
+                                    statusStrip1.Items[0].Text = $"Recovered: {file.Name} - Total: {recoveredFiles.Count + 1} files";
+                                }
+                                UpdateScanningInfo($"File Successfully Recovered\n\nFile: {file.Name}\nSize: {FormatFileSize((long)file.Length)}\nTotal Recovered: {recoveredFiles.Count + 1} files\n\nContinuing scan...");
+                            }));
                         }
                         catch (Exception ex)
                         {
                             recoveredFile.Status = "Error";
                             Console.WriteLine($"Error recovering {file.Name}: {ex.Message}");
+                            
+                            // Update status and info box for error
+                            this.Invoke(new Action(() => {
+                                if (statusStrip1.Items.Count > 0)
+                                {
+                                    statusStrip1.Items[0].Text = $"Error recovering: {file.Name}";
+                                }
+                                UpdateScanningInfo($"Recovery Error\n\nFile: {file.Name}\nError: {ex.Message}\n\nContinuing scan...");
+                            }));
                         }
                         
                         recoveredFiles.Add(recoveredFile);
@@ -982,12 +1070,27 @@ public partial class Form1 : Form
                     }
                 }
                 
+                // Update status and info box after scanning directory
+                this.Invoke(new Action(() => {
+                    if (statusStrip1.Items.Count > 0)
+                    {
+                        statusStrip1.Items[0].Text = $"Completed {directory.Name}: {fileCount} files scanned, {recoverableCount} recoverable";
+                    }
+                    UpdateScanningInfo($"Directory Scan Complete\n\nDirectory: {directory.Name}\nFiles Scanned: {fileCount}\nRecoverable Found: {recoverableCount}\n\nScanning subdirectories...");
+                }));
+                
                 // Scan subdirectories
                 var subdirs = directory.EnumerateDirectories();
                 foreach (var subdir in subdirs)
                 {
                     if (cancellationToken.IsCancellationRequested)
                         return;
+                    
+                    // Update scanning path for subdirectory
+                    this.Invoke(new Action(() => {
+                        currentScanningPath = $"{currentScanningPath}/{subdir.Name}";
+                        txtRecoveryPath.Text = $"Scanning: {currentScanningPath}";
+                    }));
                         
                     ScanDirectoryRecursive(subdir, fileTypes, recoveredFiles, recoveryPath, cancellationToken);
                 }
@@ -995,6 +1098,15 @@ public partial class Form1 : Form
             catch (Exception ex)
             {
                 Console.WriteLine($"ScanDirectoryRecursive error: {ex.Message}");
+                
+                // Update status and info box for error
+                this.Invoke(new Action(() => {
+                    if (statusStrip1.Items.Count > 0)
+                    {
+                        statusStrip1.Items[0].Text = $"Error scanning {directory.Name}: {ex.Message}";
+                    }
+                    UpdateScanningInfo($"Scanning Error\n\nDirectory: {directory.Name}\nError: {ex.Message}\n\nContinuing scan...");
+                }));
             }
         }
 
@@ -1057,6 +1169,24 @@ public partial class Form1 : Form
             catch (Exception ex)
             {
                 Console.WriteLine($"UpdateRecoveryButtonStates error: {ex.Message}");
+            }
+        }
+
+        private void UpdateScanningInfo(string info)
+        {
+            try
+            {
+                if (lblPreview.InvokeRequired)
+                {
+                    lblPreview.Invoke(new Action(() => UpdateScanningInfo(info)));
+                    return;
+                }
+                
+                lblPreview.Text = $"Scanning Information:\n\n{info}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"UpdateScanningInfo error: {ex.Message}");
             }
         }
 
