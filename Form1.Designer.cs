@@ -210,6 +210,7 @@ partial class Form1
         // 
         // btnRefreshDevices
         // 
+        this.btnRefreshDevices.Anchor = ((AnchorStyles)((AnchorStyles.Bottom | AnchorStyles.Left)));
         this.btnRefreshDevices.Location = new Point(12, 160);
         this.btnRefreshDevices.Name = "btnRefreshDevices";
         this.btnRefreshDevices.Size = new Size(100, 30);
@@ -220,6 +221,7 @@ partial class Form1
         // 
         // btnTestDetection
         // 
+        this.btnTestDetection.Anchor = ((AnchorStyles)((AnchorStyles.Bottom | AnchorStyles.Left)));
         this.btnTestDetection.Location = new Point(130, 160);
         this.btnTestDetection.Name = "btnTestDetection";
         this.btnTestDetection.Size = new Size(100, 30);
@@ -230,6 +232,7 @@ partial class Form1
         // 
         // btnToggleMonitoring
         // 
+        this.btnToggleMonitoring.Anchor = ((AnchorStyles)((AnchorStyles.Bottom | AnchorStyles.Left)));
         this.btnToggleMonitoring.Location = new Point(240, 160);
         this.btnToggleMonitoring.Name = "btnToggleMonitoring";
         this.btnToggleMonitoring.Size = new Size(120, 30);
@@ -240,6 +243,7 @@ partial class Form1
         // 
         // btnConnectDevice
         // 
+        this.btnConnectDevice.Anchor = ((AnchorStyles)((AnchorStyles.Bottom | AnchorStyles.Left)));
         this.btnConnectDevice.Enabled = false;
         this.btnConnectDevice.Location = new Point(370, 160);
         this.btnConnectDevice.Name = "btnConnectDevice";
@@ -251,6 +255,7 @@ partial class Form1
         // 
         // lstDevices
         // 
+        this.lstDevices.Anchor = ((AnchorStyles)((((AnchorStyles.Top | AnchorStyles.Bottom) | AnchorStyles.Left) | AnchorStyles.Right)));
         this.lstDevices.FormattingEnabled = true;
         this.lstDevices.ItemHeight = 15;
         this.lstDevices.Location = new Point(12, 50);
@@ -261,6 +266,7 @@ partial class Form1
         // 
         // lblDeviceStatus
         // 
+        this.lblDeviceStatus.Anchor = ((AnchorStyles)((AnchorStyles.Top | AnchorStyles.Left)));
         this.lblDeviceStatus.AutoSize = true;
         this.lblDeviceStatus.Location = new Point(12, 25);
         this.lblDeviceStatus.Name = "lblDeviceStatus";
