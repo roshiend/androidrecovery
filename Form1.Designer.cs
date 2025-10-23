@@ -60,6 +60,7 @@ partial class Form1
         this.btnBrowsePath = new Button();
         this.lblRecoveryPath = new Label();
         this.groupBox3 = new GroupBox();
+        this.treeViewDirectories = new TreeView();
         this.lstRecoveredFiles = new ListView();
         this.colFileName = new ColumnHeader();
         this.colFileSize = new ColumnHeader();
@@ -406,6 +407,7 @@ partial class Form1
         // 
         // groupBox3
         // 
+        this.groupBox3.Controls.Add(this.treeViewDirectories);
         this.groupBox3.Controls.Add(this.lstRecoveredFiles);
         this.groupBox3.Dock = DockStyle.Fill;
         this.groupBox3.Location = new Point(0, 390);
@@ -413,7 +415,17 @@ partial class Form1
         this.groupBox3.Size = new Size(800, 314);
         this.groupBox3.TabIndex = 2;
         this.groupBox3.TabStop = false;
-        this.groupBox3.Text = "Recovered Files";
+        this.groupBox3.Text = "Directory Tree & Recovered Files";
+        // 
+        // treeViewDirectories
+        // 
+        this.treeViewDirectories.CheckBoxes = true;
+        this.treeViewDirectories.Dock = DockStyle.Top;
+        this.treeViewDirectories.Location = new Point(3, 19);
+        this.treeViewDirectories.Name = "treeViewDirectories";
+        this.treeViewDirectories.Size = new Size(794, 120);
+        this.treeViewDirectories.TabIndex = 0;
+        this.treeViewDirectories.AfterCheck += new TreeViewEventHandler(this.treeViewDirectories_AfterCheck);
         // 
         // lstRecoveredFiles
         // 
@@ -427,9 +439,9 @@ partial class Form1
         this.lstRecoveredFiles.Dock = DockStyle.Fill;
         this.lstRecoveredFiles.FullRowSelect = true;
         this.lstRecoveredFiles.GridLines = true;
-        this.lstRecoveredFiles.Location = new Point(3, 19);
+        this.lstRecoveredFiles.Location = new Point(3, 142);
         this.lstRecoveredFiles.Name = "lstRecoveredFiles";
-        this.lstRecoveredFiles.Size = new Size(794, 332);
+        this.lstRecoveredFiles.Size = new Size(794, 169);
         this.lstRecoveredFiles.TabIndex = 0;
         this.lstRecoveredFiles.UseCompatibleStateImageBehavior = false;
         this.lstRecoveredFiles.View = View.Details;
@@ -593,6 +605,7 @@ partial class Form1
     private Button btnBrowsePath;
     private Label lblRecoveryPath;
     private GroupBox groupBox3;
+    private TreeView treeViewDirectories;
     private ListView lstRecoveredFiles;
     private ColumnHeader colFileName;
     private ColumnHeader colFileSize;

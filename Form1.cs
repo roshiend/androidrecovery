@@ -22,6 +22,7 @@ public partial class Form1 : Form
         private CancellationTokenSource? recoveryCancellationToken = null;
         private bool isRecoveryRunning = false;
         private string? currentScanningPath = null;
+    private List<string> selectedDirectories = new List<string>();
 
     public Form1()
     {
@@ -222,7 +223,7 @@ public partial class Form1 : Form
             }
         }
 
-        private void btnConnectDevice_Click(object sender, EventArgs e)
+        private async void btnConnectDevice_Click(object sender, EventArgs e)
         {
             try
             {
@@ -310,10 +311,13 @@ public partial class Form1 : Form
                     lblDeviceStatus.Text = $"Connected to {selectedDeviceName}";
                     lblDeviceStatus.ForeColor = Color.Green;
                     
+                    // Load directory tree for the connected device
+                    await LoadDirectoryTree();
+                    
                     // Enable start recovery button if recovery path is set
                     UpdateRecoveryButtonStates();
                     
-                    MessageBox.Show($"Successfully connected to {selectedDeviceName}!\n\nYou can now start file recovery.", 
+                    MessageBox.Show($"Successfully connected to {selectedDeviceName}!\n\nYou can now select directories to scan and start file recovery.", 
                                   "Connection Successful", 
                                   MessageBoxButtons.OK, 
                                   MessageBoxIcon.Information);
@@ -504,6 +508,22 @@ public partial class Form1 : Form
                 pictureBox1.Image = null;
                 lblPreview.Text = "Scanning Information:\r\n\r\nReady to scan device storage...\r\n\r\nSelect a file to preview";
                 UpdateRecoveryButtonStates();
+            }
+        }
+
+        private void treeViewDirectories_AfterCheck(object sender, TreeViewEventArgs e)
+        {
+            try
+            {
+                // Update selected directories list
+                UpdateSelectedDirectories();
+                
+                // Update button states based on selection
+                UpdateRecoveryButtonStates();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"treeViewDirectories_AfterCheck error: {ex.Message}");
             }
         }
 
@@ -1218,8 +1238,20 @@ public partial class Form1 : Form
                     statusStrip1.Items[0].Text = $"Starting scan for {fileTypes.Count} file types: {fileTypeList}";
                 }
                 
+                // Check if directories are selected
+                if (selectedDirectories.Count == 0)
+                {
+                    MessageBox.Show("Please select at least one directory to scan from the directory tree.", 
+                                  "No Directories Selected", 
+                                  MessageBoxButtons.OK, 
+                                  MessageBoxIcon.Warning);
+                    isRecoveryRunning = false;
+                    UpdateRecoveryButtonStates();
+                    return;
+                }
+                
                 // Update info box
-                UpdateScanningInfo($"Starting File Recovery Scan\n\nFile Types: {string.Join(", ", fileTypes)}\n\nScanning device storage for recoverable files...");
+                UpdateScanningInfo($"Starting File Recovery Scan\n\nFile Types: {string.Join(", ", fileTypes)}\n\nSelected Directories: {string.Join(", ", selectedDirectories)}\n\nScanning selected directories for recoverable files...");
                 
                 // Start recovery process
                 await Task.Run(() => PerformFileRecovery(fileTypes, recoveryCancellationToken.Token));
@@ -1298,10 +1330,10 @@ public partial class Form1 : Form
                     Directory.CreateDirectory(recoveryPath);
                 }
                 
-                // Scan device storage
+                // Scan selected directories
                 if (connectedDevice != null)
                 {
-                    ScanDeviceStorage(connectedDevice, fileTypes, recoveredFiles, recoveryPath, cancellationToken);
+                    ScanSelectedDirectories(connectedDevice, fileTypes, recoveredFiles, recoveryPath, cancellationToken);
                 }
                 
                 // Update UI with results
@@ -1346,6 +1378,124 @@ public partial class Form1 : Form
             catch (Exception ex)
             {
                 Console.WriteLine($"ScanDeviceStorage error: {ex.Message}");
+            }
+        }
+
+        private void ScanSelectedDirectories(MediaDevice device, List<string> fileTypes, List<RecoveredFileInfo> recoveredFiles, string recoveryPath, CancellationToken cancellationToken)
+        {
+            try
+            {
+                // Get device root directory
+                var rootDir = device.GetDirectoryInfo("/");
+                
+                if (rootDir != null)
+                {
+                    // Scan each selected directory
+                    foreach (var selectedDir in selectedDirectories)
+                    {
+                        if (cancellationToken.IsCancellationRequested)
+                            return;
+                            
+                        try
+                        {
+                            MediaDirectoryInfo? targetDir = null;
+                            
+                            if (selectedDir == "/" || selectedDir == "Device Root")
+                            {
+                                // Scan root directory
+                                targetDir = rootDir;
+                            }
+                            else
+                            {
+                                // Find the specific directory
+                                targetDir = FindDirectoryInDevice(rootDir, selectedDir);
+                            }
+                            
+                            if (targetDir != null)
+                            {
+                                // Update status and info box
+                                this.Invoke(new Action(() => {
+                                    if (statusStrip1.Items.Count > 0)
+                                    {
+                                        statusStrip1.Items[0].Text = $"Scanning selected directory: {targetDir.Name}...";
+                                    }
+                                    currentScanningPath = $"/{targetDir.Name}";
+                                    txtRecoveryPath.Text = $"Scanning: {currentScanningPath}";
+                                    UpdateScanningInfo($"Scanning Selected Directory\n\n📁 {targetDir.Name}\n\n🔍 Scanning for recoverable files...");
+                                }));
+                                
+                                // Scan the directory recursively
+                                ScanDirectoryRecursive(targetDir, fileTypes, recoveredFiles, recoveryPath, cancellationToken);
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Directory not found: {selectedDir}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error scanning directory {selectedDir}: {ex.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ScanSelectedDirectories error: {ex.Message}");
+            }
+        }
+
+        private MediaDirectoryInfo? FindDirectoryInDevice(MediaDirectoryInfo rootDir, string directoryName)
+        {
+            try
+            {
+                // First try to find in root directories
+                var subdirs = rootDir.EnumerateDirectories();
+                foreach (var subdir in subdirs)
+                {
+                    if (subdir.Name.Equals(directoryName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return subdir;
+                    }
+                }
+                
+                // If not found, search recursively (limited depth)
+                return FindDirectoryRecursive(rootDir, directoryName, 0, 3); // Max depth of 3
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"FindDirectoryInDevice error: {ex.Message}");
+                return null;
+            }
+        }
+
+        private MediaDirectoryInfo? FindDirectoryRecursive(MediaDirectoryInfo parentDir, string directoryName, int currentDepth, int maxDepth)
+        {
+            try
+            {
+                if (currentDepth >= maxDepth)
+                    return null;
+                    
+                var subdirs = parentDir.EnumerateDirectories();
+                foreach (var subdir in subdirs)
+                {
+                    if (subdir.Name.Equals(directoryName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return subdir;
+                    }
+                    
+                    // Search in subdirectories
+                    var found = FindDirectoryRecursive(subdir, directoryName, currentDepth + 1, maxDepth);
+                    if (found != null)
+                        return found;
+                }
+                
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"FindDirectoryRecursive error: {ex.Message}");
+                return null;
             }
         }
 
@@ -1563,6 +1713,143 @@ public partial class Form1 : Form
             catch (Exception ex)
             {
                 Console.WriteLine($"UpdateRecoveryButtonStates error: {ex.Message}");
+            }
+        }
+
+        private void UpdateSelectedDirectories()
+        {
+            try
+            {
+                selectedDirectories.Clear();
+                
+                foreach (TreeNode node in treeViewDirectories.Nodes)
+                {
+                    if (node.Checked)
+                    {
+                        selectedDirectories.Add(node.Text);
+                    }
+                    
+                    // Check child nodes recursively
+                    AddCheckedNodes(node, selectedDirectories);
+                }
+                
+                Console.WriteLine($"Selected directories: {string.Join(", ", selectedDirectories)}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"UpdateSelectedDirectories error: {ex.Message}");
+            }
+        }
+
+        private void AddCheckedNodes(TreeNode parentNode, List<string> selectedDirs)
+        {
+            try
+            {
+                foreach (TreeNode childNode in parentNode.Nodes)
+                {
+                    if (childNode.Checked)
+                    {
+                        selectedDirs.Add(childNode.Text);
+                    }
+                    
+                    // Recursively check child nodes
+                    AddCheckedNodes(childNode, selectedDirs);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"AddCheckedNodes error: {ex.Message}");
+            }
+        }
+
+        private async Task LoadDirectoryTree()
+        {
+            try
+            {
+                if (connectedDevice == null)
+                {
+                    treeViewDirectories.Nodes.Clear();
+                    return;
+                }
+
+                treeViewDirectories.Nodes.Clear();
+                selectedDirectories.Clear();
+
+                // Get root directory
+                var rootDir = connectedDevice.GetDirectoryInfo("/");
+                if (rootDir != null)
+                {
+                    // Create root node
+                    var rootNode = new TreeNode("Device Root")
+                    {
+                        Tag = "/",
+                        Checked = true // Check root by default
+                    };
+                    treeViewDirectories.Nodes.Add(rootNode);
+
+                    // Load subdirectories
+                    await LoadDirectoryNodes(rootDir, rootNode);
+                    
+                    // Expand root node
+                    rootNode.Expand();
+                    
+                    // Add root to selected directories
+                    selectedDirectories.Add("/");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"LoadDirectoryTree error: {ex.Message}");
+                MessageBox.Show($"Error loading directory tree: {ex.Message}", "Directory Tree Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async Task LoadDirectoryNodes(MediaDirectoryInfo directory, TreeNode parentNode)
+        {
+            try
+            {
+                var subdirs = directory.EnumerateDirectories();
+                int count = 0;
+                
+                foreach (var subdir in subdirs)
+                {
+                    if (count >= 20) // Limit to prevent UI freezing
+                        break;
+                        
+                    var node = new TreeNode(subdir.Name)
+                    {
+                        Tag = subdir.FullName,
+                        Checked = false // Don't check subdirectories by default
+                    };
+                    
+                    parentNode.Nodes.Add(node);
+                    
+                    // Load subdirectories of this directory (limited depth)
+                    try
+                    {
+                        var subSubdirs = subdir.EnumerateDirectories();
+                        if (subSubdirs.Any())
+                        {
+                            // Add a placeholder node to indicate there are subdirectories
+                            var placeholderNode = new TreeNode("...")
+                            {
+                                Tag = "placeholder",
+                                Checked = false
+                            };
+                            node.Nodes.Add(placeholderNode);
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore errors when accessing subdirectories
+                    }
+                    
+                    count++;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"LoadDirectoryNodes error: {ex.Message}");
             }
         }
 
