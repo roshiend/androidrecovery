@@ -41,6 +41,7 @@ partial class Form1
         this.statusLabel = new ToolStripStatusLabel();
         this.progressBar = new ToolStripProgressBar();
         this.splitContainer1 = new SplitContainer();
+        this.splitContainerMain = new SplitContainer();
         this.groupBox1 = new GroupBox();
         this.btnRefreshDevices = new Button();
         this.btnTestDetection = new Button();
@@ -196,6 +197,44 @@ partial class Form1
         this.splitContainer1.Size = new Size(1200, 704);
         this.splitContainer1.SplitterDistance = 800;
         this.splitContainer1.TabIndex = 2;
+        // 
+        // splitContainerMain
+        // 
+        this.splitContainerMain.Dock = DockStyle.Fill;
+        this.splitContainerMain.Location = new Point(0, 24);
+        this.splitContainerMain.Name = "splitContainerMain";
+        // 
+        // splitContainerMain.Panel1 - Left Sidebar (Directory Tree)
+        // 
+        this.splitContainerMain.Panel1.Controls.Add(this.groupBox4);
+        // 
+        // splitContainerMain.Panel2 - Main Content
+        // 
+        this.splitContainerMain.Panel2.Controls.Add(this.splitContainer1);
+        this.splitContainerMain.Size = new Size(1200, 704);
+        this.splitContainerMain.SplitterDistance = 300;
+        this.splitContainerMain.TabIndex = 3;
+        // 
+        // groupBox4
+        // 
+        this.groupBox4.Controls.Add(this.treeViewDirectories);
+        this.groupBox4.Dock = DockStyle.Fill;
+        this.groupBox4.Location = new Point(0, 0);
+        this.groupBox4.Name = "groupBox4";
+        this.groupBox4.Size = new Size(300, 704);
+        this.groupBox4.TabIndex = 3;
+        this.groupBox4.TabStop = false;
+        this.groupBox4.Text = "Directory Tree";
+        // 
+        // treeViewDirectories
+        // 
+        this.treeViewDirectories.CheckBoxes = true;
+        this.treeViewDirectories.Dock = DockStyle.Fill;
+        this.treeViewDirectories.Location = new Point(3, 19);
+        this.treeViewDirectories.Name = "treeViewDirectories";
+        this.treeViewDirectories.Size = new Size(294, 682);
+        this.treeViewDirectories.TabIndex = 0;
+        this.treeViewDirectories.AfterCheck += new TreeViewEventHandler(this.treeViewDirectories_AfterCheck);
         // 
         // groupBox1
         // 
@@ -417,27 +456,6 @@ partial class Form1
         this.groupBox3.TabStop = false;
         this.groupBox3.Text = "Recovered Files";
         // 
-        // groupBox4
-        // 
-        this.groupBox4.Controls.Add(this.treeViewDirectories);
-        this.groupBox4.Dock = DockStyle.Left;
-        this.groupBox4.Location = new Point(0, 390);
-        this.groupBox4.Name = "groupBox4";
-        this.groupBox4.Size = new Size(300, 314);
-        this.groupBox4.TabIndex = 3;
-        this.groupBox4.TabStop = false;
-        this.groupBox4.Text = "Directory Tree";
-        // 
-        // treeViewDirectories
-        // 
-        this.treeViewDirectories.CheckBoxes = true;
-        this.treeViewDirectories.Dock = DockStyle.Fill;
-        this.treeViewDirectories.Location = new Point(3, 19);
-        this.treeViewDirectories.Name = "treeViewDirectories";
-        this.treeViewDirectories.Size = new Size(294, 292);
-        this.treeViewDirectories.TabIndex = 0;
-        this.treeViewDirectories.AfterCheck += new TreeViewEventHandler(this.treeViewDirectories_AfterCheck);
-        // 
         // lstRecoveredFiles
         // 
         this.lstRecoveredFiles.Columns.AddRange(new ColumnHeader[] {
@@ -555,7 +573,7 @@ partial class Form1
         this.AutoScaleDimensions = new SizeF(7F, 15F);
         this.AutoScaleMode = AutoScaleMode.Font;
         this.ClientSize = new Size(1200, 750);
-        this.Controls.Add(this.splitContainer1);
+        this.Controls.Add(this.splitContainerMain);
         this.Controls.Add(this.statusStrip1);
         this.Controls.Add(this.menuStrip1);
         this.MainMenuStrip = this.menuStrip1;
@@ -572,6 +590,10 @@ partial class Form1
         this.splitContainer1.Panel2.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
         this.splitContainer1.ResumeLayout(false);
+        this.splitContainerMain.Panel1.ResumeLayout(false);
+        this.splitContainerMain.Panel2.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)(this.splitContainerMain)).EndInit();
+        this.splitContainerMain.ResumeLayout(false);
         this.groupBox1.ResumeLayout(false);
         this.groupBox1.PerformLayout();
         this.groupBox2.ResumeLayout(false);
@@ -597,6 +619,7 @@ partial class Form1
     private ToolStripStatusLabel statusLabel;
     private ToolStripProgressBar progressBar;
     private SplitContainer splitContainer1;
+    private SplitContainer splitContainerMain;
     private GroupBox groupBox1;
     private Button btnRefreshDevices;
     private Button btnTestDetection;
