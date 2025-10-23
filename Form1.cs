@@ -58,12 +58,111 @@ public partial class Form1 : Form
 
         private void btnRefreshDevices_Click(object sender, EventArgs e)
         {
-            // Empty - ready for implementation
+            try
+            {
+                // Update status
+                if (statusStrip1.Items.Count > 0)
+                {
+                    statusStrip1.Items[0].Text = "Refreshing device list...";
+                }
+                
+                // Force refresh the device list
+                RefreshDevicesSilently();
+                
+                // Update last known devices to current state
+                lastKnownDevices = new List<string>(GetCurrentDeviceList());
+                
+                // Update status
+                if (statusStrip1.Items.Count > 0)
+                {
+                    var deviceCount = lstDevices.Items.Count;
+                    if (deviceCount > 0)
+                    {
+                        statusStrip1.Items[0].Text = $"Found {deviceCount} device(s) - Ready for connection";
+                    }
+                    else
+                    {
+                        statusStrip1.Items[0].Text = "No devices found - Connect an Android device";
+                    }
+                }
+                
+                Console.WriteLine("Device list refreshed manually");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error refreshing devices: {ex.Message}", 
+                              "Refresh Error", 
+                              MessageBoxButtons.OK, 
+                              MessageBoxIcon.Error);
+                
+                Console.WriteLine($"Refresh devices error: {ex.Message}");
+                
+                // Update status on error
+                if (statusStrip1.Items.Count > 0)
+                {
+                    statusStrip1.Items[0].Text = "Error refreshing device list";
+                }
+            }
         }
 
         private void btnTestDetection_Click(object sender, EventArgs e)
         {
-            // Empty - ready for implementation
+            try
+            {
+                // Update status
+                if (statusStrip1.Items.Count > 0)
+                {
+                    statusStrip1.Items[0].Text = "Testing device detection...";
+                }
+                
+                // Test device detection
+                var devices = GetCurrentDeviceList();
+                
+                if (devices.Any())
+                {
+                    var deviceNames = string.Join(", ", devices.Select(d => d.Split('|')[0]));
+                    MessageBox.Show($"Device Detection Test PASSED!\n\nFound {devices.Count} device(s):\n{deviceNames}", 
+                                  "Detection Test", 
+                                  MessageBoxButtons.OK, 
+                                  MessageBoxIcon.Information);
+                    
+                    // Update status
+                    if (statusStrip1.Items.Count > 0)
+                    {
+                        statusStrip1.Items[0].Text = $"Detection test passed - Found {devices.Count} device(s)";
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Device Detection Test FAILED!\n\nNo devices found.\n\nPlease ensure:\n• Android device is connected via USB\n• USB debugging is enabled\n• Device is unlocked\n• Try different USB cable/port", 
+                                  "Detection Test", 
+                                  MessageBoxButtons.OK, 
+                                  MessageBoxIcon.Warning);
+                    
+                    // Update status
+                    if (statusStrip1.Items.Count > 0)
+                    {
+                        statusStrip1.Items[0].Text = "Detection test failed - No devices found";
+                    }
+                }
+                
+                Console.WriteLine($"Detection test completed - Found {devices.Count} devices");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Detection test error: {ex.Message}", 
+                              "Test Error", 
+                              MessageBoxButtons.OK, 
+                              MessageBoxIcon.Error);
+                
+                Console.WriteLine($"Test detection error: {ex.Message}");
+                
+                // Update status on error
+                if (statusStrip1.Items.Count > 0)
+                {
+                    statusStrip1.Items[0].Text = "Detection test error occurred";
+                }
+            }
         }
 
         private void btnToggleMonitoring_Click(object sender, EventArgs e)
