@@ -51,6 +51,9 @@ partial class Form1
         this.groupBox2 = new GroupBox();
         this.btnStopRecovery = new Button();
         this.btnStartRecovery = new Button();
+        this.btnCopyAll = new Button();
+        this.btnCopySelected = new Button();
+        this.btnClearList = new Button();
         this.chkIncludeVideos = new CheckBox();
         this.chkIncludeImages = new CheckBox();
         this.txtRecoveryPath = new TextBox();
@@ -278,6 +281,9 @@ partial class Form1
         // 
         this.groupBox2.Controls.Add(this.btnStopRecovery);
         this.groupBox2.Controls.Add(this.btnStartRecovery);
+        this.groupBox2.Controls.Add(this.btnCopyAll);
+        this.groupBox2.Controls.Add(this.btnCopySelected);
+        this.groupBox2.Controls.Add(this.btnClearList);
         this.groupBox2.Controls.Add(this.chkIncludeVideos);
         this.groupBox2.Controls.Add(this.chkIncludeImages);
         this.groupBox2.Controls.Add(this.txtRecoveryPath);
@@ -286,7 +292,7 @@ partial class Form1
         this.groupBox2.Dock = DockStyle.Top;
         this.groupBox2.Location = new Point(0, 200);
         this.groupBox2.Name = "groupBox2";
-        this.groupBox2.Size = new Size(800, 150);
+        this.groupBox2.Size = new Size(800, 190);
         this.groupBox2.TabIndex = 1;
         this.groupBox2.TabStop = false;
         this.groupBox2.Text = "Recovery Settings";
@@ -309,9 +315,42 @@ partial class Form1
         this.btnStartRecovery.Name = "btnStartRecovery";
         this.btnStartRecovery.Size = new Size(100, 30);
         this.btnStartRecovery.TabIndex = 5;
-        this.btnStartRecovery.Text = "Start Recovery";
+        this.btnStartRecovery.Text = "Start Scan";
         this.btnStartRecovery.UseVisualStyleBackColor = true;
         this.btnStartRecovery.Click += new EventHandler(this.btnStartRecovery_Click);
+        // 
+        // btnCopyAll
+        // 
+        this.btnCopyAll.Enabled = false;
+        this.btnCopyAll.Location = new Point(12, 150);
+        this.btnCopyAll.Name = "btnCopyAll";
+        this.btnCopyAll.Size = new Size(100, 30);
+        this.btnCopyAll.TabIndex = 7;
+        this.btnCopyAll.Text = "Copy All";
+        this.btnCopyAll.UseVisualStyleBackColor = true;
+        this.btnCopyAll.Click += new EventHandler(this.btnCopyAll_Click);
+        // 
+        // btnCopySelected
+        // 
+        this.btnCopySelected.Enabled = false;
+        this.btnCopySelected.Location = new Point(118, 150);
+        this.btnCopySelected.Name = "btnCopySelected";
+        this.btnCopySelected.Size = new Size(100, 30);
+        this.btnCopySelected.TabIndex = 8;
+        this.btnCopySelected.Text = "Copy Selected";
+        this.btnCopySelected.UseVisualStyleBackColor = true;
+        this.btnCopySelected.Click += new EventHandler(this.btnCopySelected_Click);
+        // 
+        // btnClearList
+        // 
+        this.btnClearList.Enabled = false;
+        this.btnClearList.Location = new Point(224, 150);
+        this.btnClearList.Name = "btnClearList";
+        this.btnClearList.Size = new Size(100, 30);
+        this.btnClearList.TabIndex = 9;
+        this.btnClearList.Text = "Clear List";
+        this.btnClearList.UseVisualStyleBackColor = true;
+        this.btnClearList.Click += new EventHandler(this.btnClearList_Click);
         // 
         // chkIncludeVideos
         // 
@@ -369,9 +408,9 @@ partial class Form1
         // 
         this.groupBox3.Controls.Add(this.lstRecoveredFiles);
         this.groupBox3.Dock = DockStyle.Fill;
-        this.groupBox3.Location = new Point(0, 350);
+        this.groupBox3.Location = new Point(0, 390);
         this.groupBox3.Name = "groupBox3";
-        this.groupBox3.Size = new Size(800, 354);
+        this.groupBox3.Size = new Size(800, 314);
         this.groupBox3.TabIndex = 2;
         this.groupBox3.TabStop = false;
         this.groupBox3.Text = "Recovered Files";
@@ -545,6 +584,9 @@ partial class Form1
     private GroupBox groupBox2;
     private Button btnStopRecovery;
     private Button btnStartRecovery;
+    private Button btnCopyAll;
+    private Button btnCopySelected;
+    private Button btnClearList;
     private CheckBox chkIncludeVideos;
     private CheckBox chkIncludeImages;
     private TextBox txtRecoveryPath;

@@ -387,6 +387,382 @@ public partial class Form1 : Form
             }
         }
 
+        private void btnCopyAll_Click(object sender, EventArgs e)
+        {
+            if (lstRecoveredFiles.Items.Count == 0)
+            {
+                MessageBox.Show("No files to copy. Please scan for files first.", "No Files", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                // Get recovery path
+                string recoveryPath = GetRecoveryPath();
+                if (string.IsNullOrEmpty(recoveryPath))
+                {
+                    MessageBox.Show("Please select a recovery directory first.", "No Recovery Path", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Copy all files
+                int copiedCount = 0;
+                int errorCount = 0;
+
+                foreach (ListViewItem item in lstRecoveredFiles.Items)
+                {
+                    var fileInfo = item.Tag as RecoveredFileInfo;
+                    if (fileInfo != null && fileInfo.IsRealFile)
+                    {
+                        try
+                        {
+                            // Copy file from device to recovery directory
+                            CopyFileFromDevice(fileInfo, recoveryPath);
+                            copiedCount++;
+                        }
+                        catch (Exception ex)
+                        {
+                            errorCount++;
+                            Console.WriteLine($"Error copying {fileInfo.FileName}: {ex.Message}");
+                        }
+                    }
+                }
+
+                MessageBox.Show($"Copy completed!\n\nCopied: {copiedCount} files\nErrors: {errorCount} files", 
+                              "Copy Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error during copy operation: {ex.Message}", "Copy Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnCopySelected_Click(object sender, EventArgs e)
+        {
+            if (lstRecoveredFiles.SelectedItems.Count == 0)
+            {
+                MessageBox.Show("Please select files to copy first.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                // Get recovery path
+                string recoveryPath = GetRecoveryPath();
+                if (string.IsNullOrEmpty(recoveryPath))
+                {
+                    MessageBox.Show("Please select a recovery directory first.", "No Recovery Path", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Copy selected files
+                int copiedCount = 0;
+                int errorCount = 0;
+
+                foreach (ListViewItem item in lstRecoveredFiles.SelectedItems)
+                {
+                    var fileInfo = item.Tag as RecoveredFileInfo;
+                    if (fileInfo != null && fileInfo.IsRealFile)
+                    {
+                        try
+                        {
+                            // Copy file from device to recovery directory
+                            CopyFileFromDevice(fileInfo, recoveryPath);
+                            copiedCount++;
+                        }
+                        catch (Exception ex)
+                        {
+                            errorCount++;
+                            Console.WriteLine($"Error copying {fileInfo.FileName}: {ex.Message}");
+                        }
+                    }
+                }
+
+                MessageBox.Show($"Copy completed!\n\nCopied: {copiedCount} files\nErrors: {errorCount} files", 
+                              "Copy Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error during copy operation: {ex.Message}", "Copy Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnClearList_Click(object sender, EventArgs e)
+        {
+            if (lstRecoveredFiles.Items.Count == 0)
+            {
+                MessageBox.Show("The file list is already empty.", "Empty List", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var result = MessageBox.Show($"Are you sure you want to clear the file list?\n\nThis will remove {lstRecoveredFiles.Items.Count} files from the list.", 
+                                       "Clear File List", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            
+            if (result == DialogResult.Yes)
+            {
+                lstRecoveredFiles.Items.Clear();
+                pictureBox1.Image = null;
+                lblPreview.Text = "Scanning Information:\r\n\r\nReady to scan device storage...\r\n\r\nSelect a file to preview";
+                UpdateRecoveryButtonStates();
+            }
+        }
+
+        private async void PreviewFile(RecoveredFileInfo fileInfo)
+        {
+            try
+            {
+                if (connectedDevice == null)
+                {
+                    lblPreview.Text = "No device connected - Cannot preview file";
+                    pictureBox1.Image = null;
+                    return;
+                }
+
+                // Update preview info
+                lblPreview.Text = $"Loading Preview...\n\nFile: {fileInfo.FileName}\nSize: {FormatFileSize(fileInfo.FileSize)}\nType: {fileInfo.FileType}\n\nPlease wait...";
+
+                // Load preview based on file type
+                Image? previewImage = null;
+                
+                if (IsImageFile(fileInfo.FileType))
+                {
+                    previewImage = await LoadImageFromDevice(fileInfo);
+                }
+                else if (IsVideoFile(fileInfo.FileType))
+                {
+                    previewImage = await LoadVideoPreview(fileInfo);
+                }
+                else
+                {
+                    previewImage = await LoadFileTypePreview(fileInfo);
+                }
+
+                // Display the preview
+                if (previewImage != null)
+                {
+                    pictureBox1.Image = previewImage;
+                    lblPreview.Text = $"File Preview\n\nFile: {fileInfo.FileName}\nSize: {FormatFileSize(fileInfo.FileSize)}\nType: {fileInfo.FileType}\nStatus: {fileInfo.Status}";
+                }
+                else
+                {
+                    pictureBox1.Image = null;
+                    lblPreview.Text = $"Preview Unavailable\n\nFile: {fileInfo.FileName}\nSize: {FormatFileSize(fileInfo.FileSize)}\nType: {fileInfo.FileType}\n\nPreview could not be loaded";
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PreviewFile error: {ex.Message}");
+                pictureBox1.Image = null;
+                lblPreview.Text = $"Preview Error\n\nFile: {fileInfo.FileName}\nError: {ex.Message}\n\nPlease try again";
+            }
+        }
+
+        private bool IsImageFile(string fileType)
+        {
+            var imageTypes = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp", ".heic", ".raw" };
+            return imageTypes.Contains(fileType.ToLower());
+        }
+
+        private bool IsVideoFile(string fileType)
+        {
+            var videoTypes = new[] { ".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm", ".3gp", ".m4v" };
+            return videoTypes.Contains(fileType.ToLower());
+        }
+
+        private async Task<Image?> LoadImageFromDevice(RecoveredFileInfo fileInfo)
+        {
+            try
+            {
+                if (connectedDevice == null) return null;
+
+                // Find the file on the device
+                var rootDir = connectedDevice.GetDirectoryInfo("/");
+                var file = FindFileInDevice(rootDir, fileInfo.FileName);
+                
+                if (file != null)
+                {
+                    // Load image from device
+                    using (var stream = file.OpenRead())
+                    {
+                        var image = Image.FromStream(stream);
+                        return new Bitmap(image); // Create a copy to avoid stream disposal issues
+                    }
+                }
+                
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"LoadImageFromDevice error: {ex.Message}");
+                return null;
+            }
+        }
+
+        private async Task<Image?> LoadVideoPreview(RecoveredFileInfo fileInfo)
+        {
+            try
+            {
+                // For videos, create a placeholder image with video icon
+                var bitmap = new Bitmap(400, 300);
+                using (var g = Graphics.FromImage(bitmap))
+                {
+                    g.Clear(Color.DarkGray);
+                    
+                    // Draw video icon
+                    var font = new Font("Arial", 48, FontStyle.Bold);
+                    var brush = new SolidBrush(Color.White);
+                    var text = "🎥";
+                    var textSize = g.MeasureString(text, font);
+                    var x = (bitmap.Width - textSize.Width) / 2;
+                    var y = (bitmap.Height - textSize.Height) / 2;
+                    g.DrawString(text, font, brush, x, y);
+                    
+                    // Draw file info
+                    var infoFont = new Font("Arial", 12, FontStyle.Regular);
+                    var infoText = $"Video File\n{fileInfo.FileName}\n{FormatFileSize(fileInfo.FileSize)}";
+                    var infoSize = g.MeasureString(infoText, infoFont);
+                    var infoX = (bitmap.Width - infoSize.Width) / 2;
+                    var infoY = y + textSize.Height + 10;
+                    g.DrawString(infoText, infoFont, brush, infoX, infoY);
+                }
+                
+                return bitmap;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"LoadVideoPreview error: {ex.Message}");
+                return null;
+            }
+        }
+
+        private async Task<Image?> LoadFileTypePreview(RecoveredFileInfo fileInfo)
+        {
+            try
+            {
+                // Create a generic file type preview
+                var bitmap = new Bitmap(400, 300);
+                using (var g = Graphics.FromImage(bitmap))
+                {
+                    g.Clear(Color.LightGray);
+                    
+                    // Draw file icon
+                    var font = new Font("Arial", 48, FontStyle.Bold);
+                    var brush = new SolidBrush(Color.DarkBlue);
+                    var text = "📄";
+                    var textSize = g.MeasureString(text, font);
+                    var x = (bitmap.Width - textSize.Width) / 2;
+                    var y = (bitmap.Height - textSize.Height) / 2;
+                    g.DrawString(text, font, brush, x, y);
+                    
+                    // Draw file info
+                    var infoFont = new Font("Arial", 12, FontStyle.Regular);
+                    var infoText = $"{fileInfo.FileType.ToUpper()} File\n{fileInfo.FileName}\n{FormatFileSize(fileInfo.FileSize)}";
+                    var infoSize = g.MeasureString(infoText, infoFont);
+                    var infoX = (bitmap.Width - infoSize.Width) / 2;
+                    var infoY = y + textSize.Height + 10;
+                    g.DrawString(infoText, infoFont, brush, infoX, infoY);
+                }
+                
+                return bitmap;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"LoadFileTypePreview error: {ex.Message}");
+                return null;
+            }
+        }
+
+        private string GetRecoveryPath()
+        {
+            // Get recovery path from the text box
+            string path = txtRecoveryPath.Text.Trim();
+            
+            // If it's the default message, return empty
+            if (path.Contains("Ready to scan") || path.Contains("Current scanning path"))
+            {
+                return string.Empty;
+            }
+            
+            return path;
+        }
+
+        private void CopyFileFromDevice(RecoveredFileInfo fileInfo, string recoveryPath)
+        {
+            if (connectedDevice == null)
+            {
+                throw new InvalidOperationException("No device connected");
+            }
+
+            try
+            {
+                // Create recovery directory if it doesn't exist
+                if (!Directory.Exists(recoveryPath))
+                {
+                    Directory.CreateDirectory(recoveryPath);
+                }
+
+                // Get the file from device
+                var rootDir = connectedDevice.GetDirectoryInfo("/");
+                var file = FindFileInDevice(rootDir, fileInfo.FileName);
+                
+                if (file != null)
+                {
+                    var destinationPath = Path.Combine(recoveryPath, fileInfo.FileName);
+                    
+                    // Copy file from device to local storage
+                    using (var sourceStream = file.OpenRead())
+                    using (var destinationStream = File.Create(destinationPath))
+                    {
+                        sourceStream.CopyTo(destinationStream);
+                    }
+                    
+                    Console.WriteLine($"Copied: {fileInfo.FileName} to {destinationPath}");
+                }
+                else
+                {
+                    throw new FileNotFoundException($"File {fileInfo.FileName} not found on device");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error copying {fileInfo.FileName}: {ex.Message}");
+                throw;
+            }
+        }
+
+        private MediaFileInfo? FindFileInDevice(MediaDirectoryInfo directory, string fileName)
+        {
+            try
+            {
+                // Search in current directory
+                var files = directory.EnumerateFiles();
+                foreach (var file in files)
+                {
+                    if (file.Name.Equals(fileName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return file;
+                    }
+                }
+
+                // Search in subdirectories
+                var subdirs = directory.EnumerateDirectories();
+                foreach (var subdir in subdirs)
+                {
+                    var foundFile = FindFileInDevice(subdir, fileName);
+                    if (foundFile != null)
+                    {
+                        return foundFile;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error searching in directory {directory.Name}: {ex.Message}");
+            }
+
+            return null;
+        }
+
         private void btnStartRecovery_Click(object sender, EventArgs e)
         {
             try
@@ -518,7 +894,33 @@ public partial class Form1 : Form
 
         private void lstRecoveredFiles_SelectedIndexChanged(object sender, EventArgs e)
         {
-            // Empty - ready for implementation
+            try
+            {
+                // Update button states when selection changes
+                UpdateRecoveryButtonStates();
+                
+                // Show preview of selected file
+                if (lstRecoveredFiles.SelectedItems.Count > 0)
+                {
+                    var selectedItem = lstRecoveredFiles.SelectedItems[0];
+                    var fileInfo = selectedItem.Tag as RecoveredFileInfo;
+                    
+                    if (fileInfo != null)
+                    {
+                        PreviewFile(fileInfo);
+                    }
+                }
+                else
+                {
+                    // Clear preview when no selection
+                    pictureBox1.Image = null;
+                    lblPreview.Text = "Scanning Information:\r\n\r\nReady to scan device storage...\r\n\r\nSelect a file to preview";
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"lstRecoveredFiles_SelectedIndexChanged error: {ex.Message}");
+            }
         }
 
         private void previewToolStripMenuItem_Click(object sender, EventArgs e)
@@ -833,15 +1235,15 @@ public partial class Form1 : Form
                 var recoveredCount = lstRecoveredFiles.Items.Count;
                 if (statusStrip1.Items.Count > 0)
                 {
-                    statusStrip1.Items[0].Text = $"Recovery completed - Found {recoveredCount} files";
+                    statusStrip1.Items[0].Text = $"Scan completed - Found {recoveredCount} files";
                 }
                 currentScanningPath = null;
-                txtRecoveryPath.Text = "Recovery completed - All directories scanned";
-                UpdateScanningInfo($"Recovery Complete\n\nTotal Files Found: {recoveredCount}\nRecovery Path: {txtRecoveryPath.Text}\n\nAll files have been successfully recovered!");
+                txtRecoveryPath.Text = "Scan completed - All directories scanned";
+                UpdateScanningInfo($"Scan Complete\n\nTotal Files Found: {recoveredCount}\n\nFiles are ready for copying. Use 'Copy All' or 'Copy Selected' buttons to copy files to your computer.");
                 
                 // Show completion message
-                MessageBox.Show($"File recovery completed!\n\nFound {recoveredCount} recoverable files.\n\nFiles have been saved to:\n{txtRecoveryPath.Text}", 
-                              "Recovery Complete", 
+                MessageBox.Show($"File scan completed!\n\nFound {recoveredCount} recoverable files.\n\nUse the 'Copy All' or 'Copy Selected' buttons to copy files to your computer.", 
+                              "Scan Complete", 
                               MessageBoxButtons.OK, 
                               MessageBoxIcon.Information);
                 
@@ -1007,54 +1409,36 @@ public partial class Form1 : Form
                             FileSize = (long)file.Length,
                             FileType = fileExtension,
                             RecoveryDate = DateTime.Now,
-                            Status = "Recovered",
+                            Status = "Found",
                             IsRealFile = true
                         };
                         
-                        // Copy file to recovery directory
+                        // Add file to list (no copying yet)
                         try
                         {
-                            var destinationPath = Path.Combine(recoveryPath, file.Name);
-                            
-                            // Update status and info box during file copy
+                            // Update status and info box for found file
                             this.Invoke(new Action(() => {
                                 if (statusStrip1.Items.Count > 0)
                                 {
-                                    statusStrip1.Items[0].Text = $"Recovering: {file.Name}...";
+                                    statusStrip1.Items[0].Text = $"Found: {file.Name} - Total: {recoveredFiles.Count + 1} files";
                                 }
-                                UpdateScanningInfo($"Recovering File\n\n📁 {currentScanningPath}\n📄 {file.Name}\nSize: {FormatFileSize((long)file.Length)}\nDestination: {destinationPath}\n\nCopying file...");
+                                UpdateScanningInfo($"File Found\n\n📁 {currentScanningPath}\n📄 {file.Name}\nSize: {FormatFileSize((long)file.Length)}\nTotal Found: {recoveredFiles.Count + 1} files\n\nContinuing scan...");
                             }));
                             
-                            using (var sourceStream = file.OpenRead())
-                            using (var destinationStream = File.Create(destinationPath))
-                            {
-                                sourceStream.CopyTo(destinationStream);
-                            }
-                            
-                            recoveredFile.Status = "Recovered";
-                            Console.WriteLine($"Recovered: {file.Name} ({file.Length} bytes)");
-                            
-                            // Update status and info box after successful recovery
-                            this.Invoke(new Action(() => {
-                                if (statusStrip1.Items.Count > 0)
-                                {
-                                    statusStrip1.Items[0].Text = $"Recovered: {file.Name} - Total: {recoveredFiles.Count + 1} files";
-                                }
-                                UpdateScanningInfo($"File Successfully Recovered\n\n📁 {currentScanningPath}\n📄 {file.Name}\nSize: {FormatFileSize((long)file.Length)}\nTotal Recovered: {recoveredFiles.Count + 1} files\n\nContinuing scan...");
-                            }));
+                            Console.WriteLine($"Found: {file.Name} ({file.Length} bytes)");
                         }
                         catch (Exception ex)
                         {
                             recoveredFile.Status = "Error";
-                            Console.WriteLine($"Error recovering {file.Name}: {ex.Message}");
+                            Console.WriteLine($"Error processing {file.Name}: {ex.Message}");
                             
                             // Update status and info box for error
                             this.Invoke(new Action(() => {
                                 if (statusStrip1.Items.Count > 0)
                                 {
-                                    statusStrip1.Items[0].Text = $"Error recovering: {file.Name}";
+                                    statusStrip1.Items[0].Text = $"Error processing: {file.Name}";
                                 }
-                                UpdateScanningInfo($"Recovery Error\n\n📁 {currentScanningPath}\n📄 {file.Name}\nError: {ex.Message}\n\nContinuing scan...");
+                                UpdateScanningInfo($"Processing Error\n\n📁 {currentScanningPath}\n📄 {file.Name}\nError: {ex.Message}\n\nContinuing scan...");
                             }));
                         }
                         
@@ -1159,13 +1543,22 @@ public partial class Form1 : Form
                                       txtRecoveryPath.Text != "Click Browse... to select recovery directory" &&
                                       !isRecoveryRunning;
                 
+                // Check if there are files in the list
+                bool hasFiles = lstRecoveredFiles.Items.Count > 0;
+                bool hasSelection = lstRecoveredFiles.SelectedItems.Count > 0;
+                
                 // Update start recovery button
                 btnStartRecovery.Enabled = canStartRecovery;
                 
                 // Update stop recovery button
                 btnStopRecovery.Enabled = isRecoveryRunning;
                 
-                Console.WriteLine($"Recovery buttons updated - Start: {canStartRecovery}, Stop: {isRecoveryRunning}");
+                // Update copy buttons
+                btnCopyAll.Enabled = hasFiles && !isRecoveryRunning;
+                btnCopySelected.Enabled = hasSelection && !isRecoveryRunning;
+                btnClearList.Enabled = hasFiles && !isRecoveryRunning;
+                
+                Console.WriteLine($"Recovery buttons updated - Start: {canStartRecovery}, Stop: {isRecoveryRunning}, CopyAll: {btnCopyAll.Enabled}, CopySelected: {btnCopySelected.Enabled}, ClearList: {btnClearList.Enabled}");
             }
             catch (Exception ex)
             {
