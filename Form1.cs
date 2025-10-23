@@ -17,6 +17,10 @@ public partial class Form1 : Form
         private List<string> lastKnownDevices = new List<string>();
         private DateTime lastDeviceNotification = DateTime.MinValue;
         private readonly TimeSpan notificationCooldown = TimeSpan.FromSeconds(5);
+        private MediaDevice? connectedDevice = null;
+        private string? connectedDeviceName = null;
+        private CancellationTokenSource? recoveryCancellationToken = null;
+        private bool isRecoveryRunning = false;
 
     public Form1()
     {
@@ -216,7 +220,133 @@ public partial class Form1 : Form
 
         private void btnConnectDevice_Click(object sender, EventArgs e)
         {
-            // Empty - ready for implementation
+            try
+            {
+                // Check if a device is selected
+                if (lstDevices.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Please select a device from the list first.", 
+                                  "No Device Selected", 
+                                  MessageBoxButtons.OK, 
+                                  MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Get selected device
+                var selectedDeviceName = lstDevices.SelectedItem?.ToString();
+                if (string.IsNullOrEmpty(selectedDeviceName))
+                {
+                    MessageBox.Show("Invalid device selection.", 
+                                  "Selection Error", 
+                                  MessageBoxButtons.OK, 
+                                  MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Update status
+                if (statusStrip1.Items.Count > 0)
+                {
+                    statusStrip1.Items[0].Text = $"Connecting to {selectedDeviceName}...";
+                }
+
+                // Find the device in our device list
+                var devices = GetCurrentDeviceList();
+                var selectedDevice = devices.FirstOrDefault(d => d.Split('|')[0] == selectedDeviceName);
+                
+                if (selectedDevice == null)
+                {
+                    MessageBox.Show("Selected device is no longer available. Please refresh the device list.", 
+                                  "Device Not Available", 
+                                  MessageBoxButtons.OK, 
+                                  MessageBoxIcon.Warning);
+                    
+                    // Refresh device list
+                    RefreshDevicesSilently();
+                    return;
+                }
+
+                // Extract device ID for connection
+                var deviceId = selectedDevice.Split('|')[1];
+                
+                // Check if we're already connected to this device
+                if (connectedDevice != null && connectedDeviceName == selectedDeviceName)
+                {
+                    // Disconnect from current device
+                    DisconnectFromDevice();
+                    return;
+                }
+                
+                // Disconnect from any previously connected device
+                if (connectedDevice != null)
+                {
+                    DisconnectFromDevice();
+                }
+                
+                // Attempt to connect to the device
+                var device = ConnectToDevice(deviceId);
+                
+                if (device != null)
+                {
+                    // Store connected device
+                    connectedDevice = device;
+                    connectedDeviceName = selectedDeviceName;
+                    
+                    // Update UI for connected state
+                    btnConnectDevice.Text = "Disconnect";
+                    btnConnectDevice.BackColor = Color.LightCoral;
+                    btnConnectDevice.Enabled = true;
+                    
+                    // Update status
+                    if (statusStrip1.Items.Count > 0)
+                    {
+                        statusStrip1.Items[0].Text = $"Connected to {selectedDeviceName} - Ready for recovery";
+                    }
+                    
+                    // Update device status label
+                    lblDeviceStatus.Text = $"Connected to {selectedDeviceName}";
+                    lblDeviceStatus.ForeColor = Color.Green;
+                    
+                    // Enable start recovery button if recovery path is set
+                    UpdateRecoveryButtonStates();
+                    
+                    MessageBox.Show($"Successfully connected to {selectedDeviceName}!\n\nYou can now start file recovery.", 
+                                  "Connection Successful", 
+                                  MessageBoxButtons.OK, 
+                                  MessageBoxIcon.Information);
+                    
+                    Console.WriteLine($"Successfully connected to device: {selectedDeviceName}");
+                }
+                else
+                {
+                    MessageBox.Show($"Failed to connect to {selectedDeviceName}.\n\nPlease ensure:\n• Device is unlocked\n• USB debugging is enabled\n• Try refreshing the device list", 
+                                  "Connection Failed", 
+                                  MessageBoxButtons.OK, 
+                                  MessageBoxIcon.Error);
+                    
+                    // Update status
+                    if (statusStrip1.Items.Count > 0)
+                    {
+                        statusStrip1.Items[0].Text = $"Failed to connect to {selectedDeviceName}";
+                    }
+                    
+                    Console.WriteLine($"Failed to connect to device: {selectedDeviceName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error connecting to device: {ex.Message}", 
+                              "Connection Error", 
+                              MessageBoxButtons.OK, 
+                              MessageBoxIcon.Error);
+                
+                Console.WriteLine($"Connect device error: {ex.Message}");
+                
+                // Update status on error
+                if (statusStrip1.Items.Count > 0)
+                {
+                    statusStrip1.Items[0].Text = "Connection error occurred";
+                }
+            }
         }
 
         private void lstDevices_SelectedIndexChanged(object sender, EventArgs e)
@@ -226,12 +356,94 @@ public partial class Form1 : Form
 
         private void btnStopRecovery_Click(object sender, EventArgs e)
         {
-            // Empty - ready for implementation
+            try
+            {
+                if (isRecoveryRunning && recoveryCancellationToken != null)
+                {
+                    // Cancel the recovery operation
+                    recoveryCancellationToken.Cancel();
+                    
+                    // Update status
+                    if (statusStrip1.Items.Count > 0)
+                    {
+                        statusStrip1.Items[0].Text = "Stopping recovery...";
+                    }
+                    
+                    Console.WriteLine("Recovery stop requested by user");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error stopping recovery: {ex.Message}", 
+                              "Stop Error", 
+                              MessageBoxButtons.OK, 
+                              MessageBoxIcon.Error);
+                
+                Console.WriteLine($"Stop recovery error: {ex.Message}");
+            }
         }
 
         private void btnStartRecovery_Click(object sender, EventArgs e)
         {
-            // Empty - ready for implementation
+            try
+            {
+                // Validate prerequisites
+                if (connectedDevice == null)
+                {
+                    MessageBox.Show("Please connect to a device first before starting recovery.", 
+                                  "No Device Connected", 
+                                  MessageBoxButtons.OK, 
+                                  MessageBoxIcon.Warning);
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(txtRecoveryPath.Text) || txtRecoveryPath.Text == "Click Browse... to select recovery directory")
+                {
+                    MessageBox.Show("Please select a recovery directory first.", 
+                                  "No Recovery Path", 
+                                  MessageBoxButtons.OK, 
+                                  MessageBoxIcon.Warning);
+                    return;
+                }
+
+                if (!chkIncludeImages.Checked && !chkIncludeVideos.Checked)
+                {
+                    MessageBox.Show("Please select at least one file type to recover (Images or Videos).", 
+                                  "No File Types Selected", 
+                                  MessageBoxButtons.OK, 
+                                  MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Update UI for recovery start
+                isRecoveryRunning = true;
+                UpdateRecoveryButtonStates();
+                progressBar.Visible = true;
+                progressBar.Style = ProgressBarStyle.Marquee;
+
+                // Update status
+                if (statusStrip1.Items.Count > 0)
+                {
+                    statusStrip1.Items[0].Text = "Starting file recovery scan...";
+                }
+
+                // Start recovery process
+                StartFileRecovery();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error starting recovery: {ex.Message}", 
+                              "Recovery Error", 
+                              MessageBoxButtons.OK, 
+                              MessageBoxIcon.Error);
+                
+                Console.WriteLine($"Start recovery error: {ex.Message}");
+                
+                // Reset UI on error
+                isRecoveryRunning = false;
+                UpdateRecoveryButtonStates();
+                progressBar.Visible = false;
+            }
         }
 
         private void btnBrowsePath_Click(object sender, EventArgs e)
@@ -275,6 +487,9 @@ public partial class Form1 : Form
                             
                             // Log the selection
                             Console.WriteLine($"Recovery path selected: {selectedPath}");
+                            
+                            // Update recovery button states
+                            UpdateRecoveryButtonStates();
                         }
                         else
                         {
@@ -478,6 +693,381 @@ public partial class Form1 : Form
             {
                 Console.WriteLine($"OnDevicesDisconnected error: {ex.Message}");
             }
+        }
+
+        private MediaDevice? ConnectToDevice(string deviceId)
+        {
+            try
+            {
+                // Get all available devices
+                var devices = MediaDevice.GetDevices();
+                
+                // Find the device with matching ID
+                var device = devices.FirstOrDefault(d => d.DeviceId == deviceId);
+                
+                if (device == null)
+                {
+                    Console.WriteLine($"Device with ID {deviceId} not found");
+                    return null;
+                }
+
+                // Attempt to connect to the device
+                if (device.IsConnected)
+                {
+                    Console.WriteLine($"Device {device.FriendlyName} is already connected");
+                    return device;
+                }
+
+                // Try to connect
+                device.Connect();
+                
+                if (device.IsConnected)
+                {
+                    Console.WriteLine($"Successfully connected to {device.FriendlyName}");
+                    return device;
+                }
+                else
+                {
+                    Console.WriteLine($"Failed to connect to {device.FriendlyName}");
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ConnectToDevice error: {ex.Message}");
+                return null;
+            }
+        }
+
+        private void DisconnectFromDevice()
+        {
+            try
+            {
+                if (connectedDevice != null)
+                {
+                    var deviceName = connectedDeviceName ?? "Unknown Device";
+                    
+                    // Disconnect from device
+                    if (connectedDevice.IsConnected)
+                    {
+                        connectedDevice.Disconnect();
+                    }
+                    
+                    // Clear connected device
+                    connectedDevice = null;
+                    connectedDeviceName = null;
+                    
+                    // Update UI for disconnected state
+                    btnConnectDevice.Text = "Connect Device";
+                    btnConnectDevice.BackColor = SystemColors.Control;
+                    btnConnectDevice.Enabled = true;
+                    
+                    // Update status
+                    if (statusStrip1.Items.Count > 0)
+                    {
+                        statusStrip1.Items[0].Text = $"Disconnected from {deviceName}";
+                    }
+                    
+                    // Update device status label
+                    lblDeviceStatus.Text = "No devices found";
+                    lblDeviceStatus.ForeColor = SystemColors.ControlText;
+                    
+                    // Update recovery button states
+                    UpdateRecoveryButtonStates();
+                    
+                    Console.WriteLine($"Disconnected from device: {deviceName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"DisconnectFromDevice error: {ex.Message}");
+            }
+        }
+
+        private async void StartFileRecovery()
+        {
+            try
+            {
+                isRecoveryRunning = true;
+                recoveryCancellationToken = new CancellationTokenSource();
+                
+                // Clear previous results
+                lstRecoveredFiles.Items.Clear();
+                
+                // Get file types to scan
+                var fileTypes = new List<string>();
+                if (chkIncludeImages.Checked)
+                {
+                    fileTypes.AddRange(new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp", ".heic", ".raw" });
+                }
+                if (chkIncludeVideos.Checked)
+                {
+                    fileTypes.AddRange(new[] { ".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm", ".3gp", ".m4v" });
+                }
+                
+                // Update status
+                if (statusStrip1.Items.Count > 0)
+                {
+                    statusStrip1.Items[0].Text = $"Scanning device for {fileTypes.Count} file types...";
+                }
+                
+                // Start recovery process
+                await Task.Run(() => PerformFileRecovery(fileTypes, recoveryCancellationToken.Token));
+                
+                // Recovery completed
+                isRecoveryRunning = false;
+                
+                // Update UI
+                UpdateRecoveryButtonStates();
+                progressBar.Visible = false;
+                
+                // Update status
+                var recoveredCount = lstRecoveredFiles.Items.Count;
+                if (statusStrip1.Items.Count > 0)
+                {
+                    statusStrip1.Items[0].Text = $"Recovery completed - Found {recoveredCount} files";
+                }
+                
+                // Show completion message
+                MessageBox.Show($"File recovery completed!\n\nFound {recoveredCount} recoverable files.\n\nFiles have been saved to:\n{txtRecoveryPath.Text}", 
+                              "Recovery Complete", 
+                              MessageBoxButtons.OK, 
+                              MessageBoxIcon.Information);
+                
+                Console.WriteLine($"Recovery completed - Found {recoveredCount} files");
+            }
+            catch (OperationCanceledException)
+            {
+                // Recovery was cancelled
+                isRecoveryRunning = false;
+                UpdateRecoveryButtonStates();
+                progressBar.Visible = false;
+                
+                if (statusStrip1.Items.Count > 0)
+                {
+                    statusStrip1.Items[0].Text = "Recovery cancelled by user";
+                }
+                
+                Console.WriteLine("Recovery cancelled by user");
+            }
+            catch (Exception ex)
+            {
+                isRecoveryRunning = false;
+                UpdateRecoveryButtonStates();
+                progressBar.Visible = false;
+                
+                MessageBox.Show($"Recovery error: {ex.Message}", 
+                              "Recovery Error", 
+                              MessageBoxButtons.OK, 
+                              MessageBoxIcon.Error);
+                
+                Console.WriteLine($"Recovery error: {ex.Message}");
+            }
+        }
+
+        private void PerformFileRecovery(List<string> fileTypes, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var recoveredFiles = new List<RecoveredFileInfo>();
+                var recoveryPath = txtRecoveryPath.Text;
+                
+                // Create recovery directory if it doesn't exist
+                if (!Directory.Exists(recoveryPath))
+                {
+                    Directory.CreateDirectory(recoveryPath);
+                }
+                
+                // Scan device storage
+                if (connectedDevice != null)
+                {
+                    ScanDeviceStorage(connectedDevice, fileTypes, recoveredFiles, recoveryPath, cancellationToken);
+                }
+                
+                // Update UI with results
+                this.Invoke(new Action(() => {
+                    RefreshRecoveredFilesList(recoveredFiles);
+                }));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PerformFileRecovery error: {ex.Message}");
+                throw;
+            }
+        }
+
+        private void ScanDeviceStorage(MediaDevice device, List<string> fileTypes, List<RecoveredFileInfo> recoveredFiles, string recoveryPath, CancellationToken cancellationToken)
+        {
+            try
+            {
+                // Get device root directory
+                var rootDir = device.GetDirectoryInfo("/");
+                
+                if (rootDir != null)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        return;
+                        
+                    // Update status
+                    this.Invoke(new Action(() => {
+                        if (statusStrip1.Items.Count > 0)
+                        {
+                            statusStrip1.Items[0].Text = "Scanning device storage...";
+                        }
+                    }));
+                    
+                    // Scan directory recursively
+                    ScanDirectoryRecursive(rootDir, fileTypes, recoveredFiles, recoveryPath, cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ScanDeviceStorage error: {ex.Message}");
+            }
+        }
+
+        private void ScanDirectoryRecursive(MediaDirectoryInfo directory, List<string> fileTypes, List<RecoveredFileInfo> recoveredFiles, string recoveryPath, CancellationToken cancellationToken)
+        {
+            try
+            {
+                // Scan files in current directory
+                var files = directory.EnumerateFiles();
+                foreach (var file in files)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        return;
+                        
+                    var fileExtension = Path.GetExtension(file.Name).ToLower();
+                    if (fileTypes.Contains(fileExtension))
+                    {
+                        // Found a recoverable file
+                        var recoveredFile = new RecoveredFileInfo
+                        {
+                            FileName = file.Name,
+                            FileSize = (long)file.Length,
+                            FileType = fileExtension,
+                            RecoveryDate = DateTime.Now,
+                            Status = "Recovered",
+                            IsRealFile = true
+                        };
+                        
+                        // Copy file to recovery directory
+                        try
+                        {
+                            var destinationPath = Path.Combine(recoveryPath, file.Name);
+                            using (var sourceStream = file.OpenRead())
+                            using (var destinationStream = File.Create(destinationPath))
+                            {
+                                sourceStream.CopyTo(destinationStream);
+                            }
+                            
+                            recoveredFile.Status = "Recovered";
+                            Console.WriteLine($"Recovered: {file.Name} ({file.Length} bytes)");
+                        }
+                        catch (Exception ex)
+                        {
+                            recoveredFile.Status = "Error";
+                            Console.WriteLine($"Error recovering {file.Name}: {ex.Message}");
+                        }
+                        
+                        recoveredFiles.Add(recoveredFile);
+                        
+                        // Update UI periodically
+                        if (recoveredFiles.Count % 10 == 0)
+                        {
+                            this.Invoke(new Action(() => {
+                                RefreshRecoveredFilesList(recoveredFiles);
+                            }));
+                        }
+                    }
+                }
+                
+                // Scan subdirectories
+                var subdirs = directory.EnumerateDirectories();
+                foreach (var subdir in subdirs)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        return;
+                        
+                    ScanDirectoryRecursive(subdir, fileTypes, recoveredFiles, recoveryPath, cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ScanDirectoryRecursive error: {ex.Message}");
+            }
+        }
+
+        private void RefreshRecoveredFilesList(List<RecoveredFileInfo> recoveredFiles)
+        {
+            try
+            {
+                lstRecoveredFiles.Items.Clear();
+                
+                foreach (var file in recoveredFiles)
+                {
+                    var item = new ListViewItem(file.FileName);
+                    item.SubItems.Add(FormatFileSize(file.FileSize));
+                    item.SubItems.Add(file.FileType);
+                    item.SubItems.Add(file.RecoveryDate.ToString("yyyy-MM-dd HH:mm:ss"));
+                    item.SubItems.Add(file.Status);
+                    item.Tag = file;
+                    
+                    lstRecoveredFiles.Items.Add(item);
+                }
+                
+                // Auto-select first item for preview
+                if (lstRecoveredFiles.Items.Count > 0)
+                {
+                    lstRecoveredFiles.Items[0].Selected = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"RefreshRecoveredFilesList error: {ex.Message}");
+            }
+        }
+
+        private string FormatFileSize(long bytes)
+        {
+            if (bytes < 1024) return $"{bytes} B";
+            if (bytes < 1024 * 1024) return $"{bytes / 1024:F1} KB";
+            if (bytes < 1024 * 1024 * 1024) return $"{bytes / (1024 * 1024):F1} MB";
+            return $"{bytes / (1024 * 1024 * 1024):F1} GB";
+        }
+
+        private void UpdateRecoveryButtonStates()
+        {
+            try
+            {
+                // Check if device is connected and recovery path is set
+                bool canStartRecovery = connectedDevice != null && 
+                                      !string.IsNullOrEmpty(txtRecoveryPath.Text) && 
+                                      txtRecoveryPath.Text != "Click Browse... to select recovery directory" &&
+                                      !isRecoveryRunning;
+                
+                // Update start recovery button
+                btnStartRecovery.Enabled = canStartRecovery;
+                
+                // Update stop recovery button
+                btnStopRecovery.Enabled = isRecoveryRunning;
+                
+                Console.WriteLine($"Recovery buttons updated - Start: {canStartRecovery}, Stop: {isRecoveryRunning}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"UpdateRecoveryButtonStates error: {ex.Message}");
+            }
+        }
+
+        public class RecoveredFileInfo
+        {
+            public string FileName { get; set; } = string.Empty;
+            public long FileSize { get; set; }
+            public string FileType { get; set; } = string.Empty;
+            public DateTime RecoveryDate { get; set; }
+            public string Status { get; set; } = string.Empty;
+            public bool IsRealFile { get; set; }
         }
     }
 }
